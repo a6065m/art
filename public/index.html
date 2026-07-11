@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPTV — الرئيسية</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <a href="/" class="logo">📺 IPTV</a>
+    <nav>
+      <a href="/" class="active">🏠 الرئيسية</a>
+      <a href="/matches.html">⚽ المباريات</a>
+    </nav>
+    <div class="nav-actions" id="navActions">
+      <a href="/login.html" class="btn btn-outline">دخول</a>
+      <a href="/login.html" class="btn btn-primary">تسجيل</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>📺 مشاهدة القنوات والمباريات</h1>
+    <p>اكتشف أفضل القنوات وتابع مبارياتك المفضلة</p>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="ابحث عن قناة..." oninput="filterChannels()" />
+      <button class="btn btn-primary" onclick="filterChannels()">🔍 بحث</button>
+    </div>
+  </section>
+
+  <!-- Categories -->
+  <div class="category-tabs" id="categoryTabs">
+    <button class="tab-btn active" data-cat="" onclick="selectCat(this, '')">🌟 الكل</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="container">
+
+    <!-- Live / Featured -->
+    <div class="section" id="liveSection">
+      <div class="section-header">
+        <div class="section-title">🔴 <span>بث مباشر</span></div>
+        <a href="/matches.html" class="btn btn-outline btn-sm">المباريات ←</a>
+      </div>
+      <div id="liveChannels" class="grid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- All Channels -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">📡 <span>جميع القنوات</span></div>
+        <span id="channelCount" style="color:var(--text-muted);font-size:0.85rem"></span>
+      </div>
+      <div id="channelsGrid" class="grid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Player Modal -->
+  <div class="modal-overlay player-modal" id="playerModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="playerTitle">تشغيل القناة</span>
+        <button class="modal-close" onclick="closePlayer()">✕</button>
+      </div>
+      <div class="video-container" id="videoContainer">
+        <span>🎬 سيتم دعم التشغيل المباشر قريباً</span>
+      </div>
+      <div id="streamLinks"></div>
+      <div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:space-between; align-items:center">
+        <button class="btn btn-primary" id="favBtn" onclick="toggleFavorite()">❤️ أضف للمفضلة</button>
+        <button class="btn btn-outline" onclick="closePlayer()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const API = '';
+    let allChannels = [];
+    let currentChannel = null;
+    let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // ---- Auth Nav ----
+    function updateNav() {
+      const nav = document.getElementById('navActions');
+      if (token && user.username) {
+        nav.innerHTML = `
+          <span style="color:var(--text-muted);font-size:0.85rem">مرحباً، ${user.username}</span>
+          <a href="/favorites.html" class="btn btn-outline btn-sm">❤️ مفضلتي</a>
+          ${user.role === 'ROLE_ADMIN' ? '<a href="/admin/" class="btn btn-outline btn-sm">⚙️ لوحة التحكم</a>' : ''}
+          <button class="btn btn-outline btn-sm" onclick="logout()">خروج</button>
+        `;
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      location.reload();
+    }
+
+    // ---- Load Categories ----
+    async function loadCategories() {
+      try {
+        const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+        const res = await fetch(`${API}/categories`, { headers });
+        if (!res.ok) return;
+        const cats = await res.json();
+        const tabs = document.getElementById('categoryTabs');
+        cats.forEach(c => {
+          const btn = document.createElement('button');
+          btn.className = 'tab-btn';
+          btn.dataset.cat = c.id;
+          btn.textContent = c.name;
+          btn.onclick = () => selectCat(btn, c.id);
+          tabs.appendChild(btn);
+        });
+      } catch (_) {}
+    }
+
+    function selectCat(el, catId) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      renderChannels(catId);
+    }
+
+    // ---- Load Channels ----
+    async function loadChannels() {
+      try {
+        const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+        const res = await fetch(`${API}/channels`, { headers });
+        if (res.ok) {
+          allChannels = await res.json();
+        } else {
+          allChannels = getMockChannels();
+        }
+      } catch (_) {
+        allChannels = getMockChannels();
+      }
+      renderLive();
+      renderChannels('');
+    }
+
+    function getMockChannels() {
+      return [
+        { id: '1', name: 'قناة الجزيرة', logo: '', source_type: 'm3u', category: 'أخبار', live: true },
+        { id: '2', name: 'MBC 1', logo: '', source_type: 'm3u', category: 'ترفيه', live: false },
+        { id: '3', name: 'beIN Sports 1', logo: '', source_type: 'xtream', category: 'رياضة', live: true },
+        { id: '4', name: 'beIN Sports 2', logo: '', source_type: 'xtream', category: 'رياضة', live: true },
+        { id: '5', name: 'روتانا كليبس', logo: '', source_type: 'm3u', category: 'موسيقى', live: false },
+        { id: '6', name: 'قناة سعودية', logo: '', source_type: 'm3u', category: 'محلية', live: false },
+        { id: '7', name: 'OSN Movies', logo: '', source_type: 'xtream', category: 'أفلام', live: false },
+        { id: '8', name: 'قناة أطفال', logo: '', source_type: 'm3u', category: 'أطفال', live: false },
+      ];
+    }
+
+    function renderLive() {
+      const live = allChannels.filter(c => c.live);
+      const container = document.getElementById('liveChannels');
+      if (!live.length) {
+        document.getElementById('liveSection').style.display = 'none';
+        return;
+      }
+      container.innerHTML = live.map(ch => channelCard(ch, true)).join('');
+    }
+
+    function renderChannels(catFilter) {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      let list = allChannels;
+      if (catFilter) list = list.filter(c => c.category_id === catFilter || c.category === catFilter);
+      if (query) list = list.filter(c => c.name.toLowerCase().includes(query));
+
+      document.getElementById('channelCount').textContent = `${list.length} قناة`;
+      const grid = document.getElementById('channelsGrid');
+      if (!list.length) {
+        grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📭</div><p>لا توجد قنوات</p></div>`;
+        return;
+      }
+      grid.innerHTML = list.map(ch => channelCard(ch)).join('');
+    }
+
+    function filterChannels() {
+      const activeCat = document.querySelector('.tab-btn.active')?.dataset.cat || '';
+      renderChannels(activeCat);
+    }
+
+    function channelCard(ch, badge = false) {
+      const isFav = favorites.includes(ch.id);
+      const emoji = getCategoryEmoji(ch.category || '');
+      return `
+        <div class="card" onclick="openPlayer('${ch.id}')">
+          <div class="card-img">
+            ${ch.logo
+              ? `<img src="${ch.logo}" alt="${ch.name}" onerror="this.parentElement.innerHTML='${emoji}'">`
+              : emoji}
+          </div>
+          <div class="card-body">
+            <div class="card-title">${ch.name}</div>
+            <div class="card-meta">
+              ${ch.live ? '<span class="badge badge-live">🔴 مباشر</span>' : ''}
+              ${ch.category ? `<span style="margin-right:4px">${ch.category}</span>` : ''}
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="event.stopPropagation();openPlayer('${ch.id}')">▶ مشاهدة</button>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();quickFav('${ch.id}')" title="مفضلة">${isFav ? '❤️' : '🤍'}</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function getCategoryEmoji(cat) {
+      const map = { 'رياضة': '⚽', 'أخبار': '📰', 'ترفيه': '🎭', 'أفلام': '🎬', 'موسيقى': '🎵', 'أطفال': '🧸', 'محلية': '🏴' };
+      return map[cat] || '📺';
+    }
+
+    // ---- Player ----
+    function openPlayer(id) {
+      currentChannel = allChannels.find(c => c.id === id);
+      if (!currentChannel) return;
+      document.getElementById('playerTitle').textContent = currentChannel.name;
+      const isFav = favorites.includes(id);
+      document.getElementById('favBtn').textContent = isFav ? '💔 إزالة من المفضلة' : '❤️ أضف للمفضلة';
+      document.getElementById('streamLinks').innerHTML = `
+        <div style="margin-top:0.8rem; font-size:0.85rem; color:var(--text-muted)">
+          ⚡ لتشغيل القناة يحتاج النظام إلى رابط البث المباشر. 
+          <br>اربط مصدر M3U أو Xtream من لوحة التحكم.
+        </div>`;
+      document.getElementById('playerModal').classList.add('open');
+    }
+
+    function closePlayer() {
+      document.getElementById('playerModal').classList.remove('open');
+      currentChannel = null;
+    }
+
+    // ---- Favorites ----
+    function toggleFavorite() {
+      if (!currentChannel) return;
+      quickFav(currentChannel.id);
+      const isFav = favorites.includes(currentChannel.id);
+      document.getElementById('favBtn').textContent = isFav ? '💔 إزالة من المفضلة' : '❤️ أضف للمفضلة';
+    }
+
+    function quickFav(id) {
+      const idx = favorites.indexOf(id);
+      if (idx >= 0) {
+        favorites.splice(idx, 1);
+        showToast('تمت الإزالة من المفضلة', '');
+      } else {
+        favorites.push(id);
+        showToast('✅ أضيف إلى المفضلة', 'success');
+      }
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+    }
+
+    // ---- Toast ----
+    function showToast(msg, type = '') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    // ---- Close modal on overlay click ----
+    document.getElementById('playerModal').addEventListener('click', function(e) {
+      if (e.target === this) closePlayer();
+    });
+
+    // ---- Init ----
+    updateNav();
+    loadCategories();
+    loadChannels();
+  </script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>المباريات — IPTV</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <a href="/" class="logo">📺 IPTV</a>
+    <nav>
+      <a href="/">🏠 الرئيسية</a>
+      <a href="/matches.html" class="active">⚽ المباريات</a>
+    </nav>
+    <div class="nav-actions" id="navActions">
+      <a href="/login.html" class="btn btn-outline">دخول</a>
+      <a href="/login.html" class="btn btn-primary">تسجيل</a>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <h1>⚽ المباريات</h1>
+    <p>تابع جميع مبارياتك المفضلة مباشرةً</p>
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="ابحث عن فريق أو مباراة..." oninput="filterMatches()" />
+      <button class="btn btn-primary" onclick="filterMatches()">🔍 بحث</button>
+    </div>
+  </section>
+
+  <!-- Status Tabs -->
+  <div class="category-tabs">
+    <button class="tab-btn active" onclick="filterByStatus(this, '')">🌟 الكل</button>
+    <button class="tab-btn" onclick="filterByStatus(this, 'live')">🔴 الآن</button>
+    <button class="tab-btn" onclick="filterByStatus(this, 'soon')">⏳ قريباً</button>
+    <button class="tab-btn" onclick="filterByStatus(this, 'done')">✅ انتهت</button>
+  </div>
+
+  <div class="container">
+
+    <!-- Live Now -->
+    <div class="section" id="liveSection">
+      <div class="section-header">
+        <div class="section-title">🔴 <span>يُلعب الآن</span></div>
+        <span class="badge badge-live" id="liveCount"></span>
+      </div>
+      <div id="liveMatches" style="display:flex; flex-direction:column; gap:0.8rem">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <!-- Upcoming -->
+    <div class="section" id="upcomingSection">
+      <div class="section-header">
+        <div class="section-title">⏳ <span>مباريات قادمة</span></div>
+      </div>
+      <div id="upcomingMatches" style="display:flex; flex-direction:column; gap:0.8rem"></div>
+    </div>
+
+    <!-- Finished -->
+    <div class="section" id="finishedSection">
+      <div class="section-header">
+        <div class="section-title">✅ <span>انتهت</span></div>
+      </div>
+      <div id="finishedMatches" style="display:flex; flex-direction:column; gap:0.8rem"></div>
+    </div>
+
+  </div>
+
+  <!-- Watch Modal -->
+  <div class="modal-overlay" id="watchModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="watchTitle">مشاهدة المباراة</span>
+        <button class="modal-close" onclick="closeWatch()">✕</button>
+      </div>
+      <div class="video-container">
+        <span>🎬 سيتم دعم التشغيل المباشر قريباً</span>
+      </div>
+      <div id="watchInfo" style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted)"></div>
+      <div style="margin-top:1rem; text-align:left">
+        <button class="btn btn-outline" onclick="closeWatch()">إغلاق</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const API = '';
+    let allMatches = [];
+    let activeStatus = '';
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    // ---- Auth Nav ----
+    function updateNav() {
+      const nav = document.getElementById('navActions');
+      if (token && user.username) {
+        nav.innerHTML = `
+          <span style="color:var(--text-muted);font-size:0.85rem">مرحباً، ${user.username}</span>
+          ${user.role === 'ROLE_ADMIN' ? '<a href="/admin/" class="btn btn-outline btn-sm">⚙️ لوحة التحكم</a>' : ''}
+          <button class="btn btn-outline btn-sm" onclick="logout()">خروج</button>
+        `;
+      }
+    }
+    function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); location.reload(); }
+
+    // ---- Load Matches ----
+    async function loadMatches() {
+      try {
+        const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+        const res = await fetch(`${API}/matches`, { headers });
+        if (res.ok) allMatches = await res.json();
+        else allMatches = getMockMatches();
+      } catch (_) {
+        allMatches = getMockMatches();
+      }
+      renderAll();
+    }
+
+    function getMockMatches() {
+      const now = new Date();
+      const soon = d => new Date(now.getTime() + d * 60000).toISOString();
+      const past = d => new Date(now.getTime() - d * 60000).toISOString();
+      return [
+        { id: '1', home_team: 'الهلال', away_team: 'النصر', start_time: past(30), status: 'live', channel: 'beIN Sports 1' },
+        { id: '2', home_team: 'الاتحاد', away_team: 'الأهلي', start_time: past(60), status: 'live', channel: 'beIN Sports 2' },
+        { id: '3', home_team: 'ريال مدريد', away_team: 'برشلونة', start_time: soon(120), status: 'soon', channel: 'beIN Sports 1' },
+        { id: '4', home_team: 'ليفربول', away_team: 'مانشستر سيتي', start_time: soon(240), status: 'soon', channel: 'OSN Sports' },
+        { id: '5', home_team: 'الاتحاد', away_team: 'الهلال', start_time: past(180), status: 'done', channel: 'beIN Sports 1' },
+        { id: '6', home_team: 'باريس سان جيرمان', away_team: 'بايرن ميونخ', start_time: past(300), status: 'done', channel: 'beIN Sports 4' },
+      ];
+    }
+
+    // ---- Filter ----
+    function filterByStatus(el, status) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      activeStatus = status;
+      renderAll();
+    }
+
+    function filterMatches() { renderAll(); }
+
+    function renderAll() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      let list = allMatches;
+
+      if (query) {
+        list = list.filter(m =>
+          m.home_team.toLowerCase().includes(query) ||
+          m.away_team.toLowerCase().includes(query)
+        );
+      }
+
+      if (activeStatus) {
+        list = list.filter(m => m.status === activeStatus);
+      }
+
+      const live = list.filter(m => m.status === 'live');
+      const soon = list.filter(m => m.status === 'soon');
+      const done = list.filter(m => m.status === 'done');
+
+      document.getElementById('liveCount').textContent = live.length ? `${live.length} مباريات` : '';
+      document.getElementById('liveSection').style.display = live.length ? '' : 'none';
+      document.getElementById('upcomingSection').style.display = soon.length ? '' : 'none';
+      document.getElementById('finishedSection').style.display = done.length ? '' : 'none';
+
+      document.getElementById('liveMatches').innerHTML = live.map(matchCard).join('') || '';
+      document.getElementById('upcomingMatches').innerHTML = soon.map(matchCard).join('') || '';
+      document.getElementById('finishedMatches').innerHTML = done.map(matchCard).join('') || '';
+    }
+
+    function matchCard(m) {
+      const statusMap = { live: 'مباشر الآن 🔴', soon: 'قريباً ⏳', done: 'انتهت ✅' };
+      const statusClass = { live: 'status-live', soon: 'status-soon', done: 'status-done' };
+      const timeStr = formatTime(m.start_time);
+
+      return `
+        <div class="match-card">
+          <div class="match-teams">
+            <div class="team">
+              <div class="team-logo">${getTeamEmoji(m.home_team)}</div>
+              <div class="team-name">${m.home_team}</div>
+            </div>
+            <div class="match-vs">VS</div>
+            <div class="team">
+              <div class="team-logo">${getTeamEmoji(m.away_team)}</div>
+              <div class="team-name">${m.away_team}</div>
+            </div>
+          </div>
+          <div class="match-info" style="text-align:right">
+            <div><span class="match-status ${statusClass[m.status]}">${statusMap[m.status]}</span></div>
+            <div style="margin-top:0.3rem">🕐 ${timeStr}</div>
+            ${m.channel ? `<div style="margin-top:0.3rem">📺 ${m.channel}</div>` : ''}
+            ${m.status !== 'done' ? `
+              <button class="btn btn-primary btn-sm" style="margin-top:0.5rem" onclick="watchMatch('${m.id}')">
+                ▶ مشاهدة
+              </button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function getTeamEmoji(name) {
+      const map = { 'الهلال': '🔵', 'النصر': '💛', 'الاتحاد': '🟡', 'الأهلي': '🔴' };
+      return map[name] || '⚽';
+    }
+
+    function formatTime(iso) {
+      if (!iso) return '—';
+      const d = new Date(iso);
+      const now = new Date();
+      const diff = Math.abs(now - d) / 60000;
+      if (diff < 1) return 'الآن';
+      if (diff < 60) return `منذ ${Math.floor(diff)} دقيقة`;
+      return d.toLocaleString('ar-SA', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ---- Watch Modal ----
+    function watchMatch(id) {
+      const m = allMatches.find(x => x.id === id);
+      if (!m) return;
+      document.getElementById('watchTitle').textContent = `${m.home_team} ضد ${m.away_team}`;
+      document.getElementById('watchInfo').innerHTML = `
+        📺 القناة: <strong>${m.channel || 'غير محدد'}</strong><br>
+        ⚡ يحتاج النظام إلى رابط البث المباشر المرتبط بهذه المباراة.
+      `;
+      document.getElementById('watchModal').classList.add('open');
+    }
+
+    function closeWatch() {
+      document.getElementById('watchModal').classList.remove('open');
+    }
+
+    document.getElementById('watchModal').addEventListener('click', function(e) {
+      if (e.target === this) closeWatch();
+    });
+
+    // ---- Init ----
+    updateNav();
+    loadMatches();
+
+    // تحديث كل دقيقة
+    setInterval(loadMatches, 60000);
+  </script>
+</body>
+</html>
