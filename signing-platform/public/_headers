@@ -1,0 +1,22 @@
+# Cloudflare Pages — HTTP response headers
+
+# Apply security headers to all HTML pages
+/*.html
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.stripe.com; frame-src https://js.stripe.com
+
+# API responses
+/api/*
+  X-Content-Type-Options: nosniff
+  Cache-Control: no-store
+
+# Static assets — long cache
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Apple mobileconfig — must not be cached
+/api/public/register-udid
+  Cache-Control: no-store, no-cache

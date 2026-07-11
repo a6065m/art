@@ -1,0 +1,8 @@
+# Cloudflare Pages — URL redirects
+
+# Redirect root to index
+/index  /index.html  301
+
+# SPA-style: auth flow entry point
+/login    /sign.html  302
+/register /sign.html#register  302

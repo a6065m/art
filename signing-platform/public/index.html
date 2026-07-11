@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing Platform</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="landing">
+  <header class="navbar">
+    <div class="container">
+      <a class="brand" href="/">Signing Platform</a>
+      <nav>
+        <a href="/dashboard.html" class="btn btn-outline">Dashboard</a>
+        <a href="#pricing" class="btn btn-primary" id="ctaBtn">Get Started</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="container">
+      <h1>Sign iOS Apps<br/>Without a Developer Account</h1>
+      <p class="subtitle">Submit your device UDID, subscribe, and get your apps signed in minutes.</p>
+      <a href="#pricing" class="btn btn-primary btn-lg">View Plans</a>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="container grid-3">
+      <div class="card">
+        <div class="card-icon">🔐</div>
+        <h3>Secure Signing</h3>
+        <p>All certificates are stored encrypted in the cloud. Your apps are signed in a secure pipeline.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <h3>Fast Turnaround</h3>
+        <p>Submit your UDID once and get all your signing requests handled automatically.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📱</div>
+        <h3>Multiple Devices</h3>
+        <p>Register up to 3 devices per subscription and manage them from a single dashboard.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="container">
+      <h2>Simple Pricing</h2>
+      <div class="grid-3">
+        <div class="card plan-card">
+          <h3>Basic</h3>
+          <div class="price">$4.99<span>/month</span></div>
+          <ul>
+            <li>Up to 3 devices</li>
+            <li>Unlimited signing requests</li>
+            <li>Email support</li>
+          </ul>
+          <button class="btn btn-primary" onclick="subscribe()">Subscribe</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container">
+      <p>&copy; <span id="year"></span> Signing Platform. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      document.getElementById('ctaBtn').textContent = 'Go to Dashboard';
+      document.getElementById('ctaBtn').href = '/dashboard.html';
+    }
+
+    async function subscribe() {
+      if (!localStorage.getItem('token')) {
+        window.location.href = '/sign.html#register';
+        return;
+      }
+      try {
+        const res = await fetch('/api/subscription/create', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
+        });
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+        else alert(data.error ?? 'Failed to create checkout session');
+      } catch (e) {
+        alert('Network error');
+      }
+    }
+  </script>
+</body>
+</html>

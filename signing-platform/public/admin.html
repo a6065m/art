@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Signing Platform</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a class="brand" href="/">Signing Platform</a>
+      <nav>
+        <span class="badge badge-admin">Admin</span>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <ul>
+        <li><button class="sidebar-btn active" onclick="showSection('overview')">📊 Overview</button></li>
+        <li><button class="sidebar-btn" onclick="showSection('users')">👥 Users</button></li>
+        <li><button class="sidebar-btn" onclick="showSection('devices')">📱 Devices</button></li>
+        <li><button class="sidebar-btn" onclick="showSection('subscriptions')">💳 Subscriptions</button></li>
+        <li><button class="sidebar-btn" onclick="showSection('certificates')">🔑 Certificates</button></li>
+        <li><button class="sidebar-btn" onclick="showSection('profiles')">📄 Profiles</button></li>
+        <li><button class="sidebar-btn" onclick="showSection('settings')">⚙️ Settings</button></li>
+      </ul>
+    </aside>
+
+    <main class="admin-content">
+
+      <!-- Overview -->
+      <section id="section-overview">
+        <h2>Overview</h2>
+        <div class="stats-grid" id="statsGrid">Loading…</div>
+      </section>
+
+      <!-- Users -->
+      <section id="section-users" class="hidden">
+        <div class="section-header">
+          <h2>Users</h2>
+          <input class="search-input" id="userSearch" placeholder="Search email…" oninput="searchUsers()" />
+        </div>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Email</th><th>Role</th><th>Plan</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Devices -->
+      <section id="section-devices" class="hidden">
+        <div class="section-header">
+          <h2>Devices</h2>
+          <select id="deviceStatusFilter" onchange="loadDevices()">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="signed">Signed</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <table class="table">
+          <thead><tr><th>ID</th><th>UDID</th><th>Name</th><th>Owner</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+          <tbody id="devicesBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Subscriptions -->
+      <section id="section-subscriptions" class="hidden">
+        <h2>Subscriptions</h2>
+        <table class="table">
+          <thead><tr><th>ID</th><th>User</th><th>Plan</th><th>Status</th><th>Expires</th></tr></thead>
+          <tbody id="subsBody"></tbody>
+        </table>
+      </section>
+
+      <!-- Certificates -->
+      <section id="section-certificates" class="hidden">
+        <div class="section-header">
+          <h2>Certificates</h2>
+          <button class="btn btn-primary btn-sm" onclick="openCertUpload()">+ Upload</button>
+        </div>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Name</th><th>Team</th><th>Common Name</th><th>Expires</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="certsBody"></tbody>
+        </table>
+        <div class="modal-backdrop hidden" id="certModal">
+          <div class="modal">
+            <h3>Upload Certificate</h3>
+            <div class="form-group"><label>Name</label><input id="certName" type="text" /></div>
+            <div class="form-group"><label>.p12 File</label><input id="certFile" type="file" accept=".p12" /></div>
+            <div class="form-group"><label>Password</label><input id="certPass" type="password" /></div>
+            <div class="form-group"><label>Team ID</label><input id="certTeam" type="text" /></div>
+            <div class="form-group"><label>Common Name</label><input id="certCN" type="text" /></div>
+            <div class="form-group"><label>Expires At</label><input id="certExp" type="date" /></div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" onclick="closeCertModal()">Cancel</button>
+              <button class="btn btn-primary" onclick="uploadCert()">Upload</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Profiles -->
+      <section id="section-profiles" class="hidden">
+        <div class="section-header">
+          <h2>Provisioning Profiles</h2>
+          <button class="btn btn-primary btn-sm" onclick="openProfileUpload()">+ Upload</button>
+        </div>
+        <table class="table">
+          <thead><tr><th>ID</th><th>Name</th><th>Bundle ID</th><th>Team</th><th>Expires</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody id="profilesBody"></tbody>
+        </table>
+        <div class="modal-backdrop hidden" id="profileModal">
+          <div class="modal">
+            <h3>Upload Profile</h3>
+            <div class="form-group"><label>Name</label><input id="profName" type="text" /></div>
+            <div class="form-group"><label>.mobileprovision File</label><input id="profFile" type="file" accept=".mobileprovision" /></div>
+            <div class="form-group"><label>Bundle ID</label><input id="profBundle" type="text" /></div>
+            <div class="form-group"><label>Team ID</label><input id="profTeam" type="text" /></div>
+            <div class="form-group"><label>Expires At</label><input id="profExp" type="date" /></div>
+            <div class="modal-footer">
+              <button class="btn btn-outline" onclick="closeProfileModal()">Cancel</button>
+              <button class="btn btn-primary" onclick="uploadProfile()">Upload</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section id="section-settings" class="hidden">
+        <h2>Settings</h2>
+        <form id="settingsForm" onsubmit="saveSettings(event)">
+          <div class="form-group"><label>Site Name</label><input id="s_site_name" name="site_name" type="text" /></div>
+          <div class="form-group">
+            <label>Registration Open</label>
+            <select id="s_registration_open" name="registration_open">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Signing Enabled</label>
+            <select id="s_signing_enabled" name="signing_enabled">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Max Devices Per User</label><input id="s_max_devices" name="max_devices_per_user" type="number" min="1" max="20" /></div>
+          <div class="form-group"><label>Stripe Price ID</label><input id="s_stripe_price" name="stripe_price_id" type="text" /></div>
+          <div class="form-group"><label>Support Email</label><input id="s_support_email" name="support_email" type="email" /></div>
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/sign.html';
+
+    function api(path, opts = {}) {
+      return fetch(path, {
+        ...opts,
+        headers: { Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+      });
+    }
+
+    function apiJson(path, opts = {}) {
+      return fetch(path, {
+        ...opts,
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      });
+    }
+
+    // Verify admin role
+    (async () => {
+      const res = await apiJson('/api/auth/me');
+      const me = await res.json();
+      if (me.role !== 'admin') window.location.href = '/dashboard.html';
+      loadStats();
+    })();
+
+    function showSection(name) {
+      document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.toggle('active', b.onclick.toString().includes(name)));
+      document.querySelectorAll('main > section').forEach(s =>
+        s.classList.toggle('hidden', s.id !== 'section-' + name));
+      // Lazy load
+      if (name === 'users') loadUsers();
+      if (name === 'devices') loadDevices();
+      if (name === 'subscriptions') loadSubs();
+      if (name === 'certificates') loadCerts();
+      if (name === 'profiles') loadProfiles();
+      if (name === 'settings') loadSettings();
+    }
+
+    async function loadStats() {
+      const res = await apiJson('/api/admin/stats');
+      const d = await res.json();
+      document.getElementById('statsGrid').innerHTML = Object.entries(d)
+        .map(([k, v]) => `<div class="stat-card"><div class="stat-value">${v}</div><div class="stat-label">${k.replace(/_/g,' ')}</div></div>`)
+        .join('');
+    }
+
+    let userSearchTimeout;
+    function searchUsers() {
+      clearTimeout(userSearchTimeout);
+      userSearchTimeout = setTimeout(loadUsers, 400);
+    }
+
+    async function loadUsers() {
+      const q = document.getElementById('userSearch')?.value ?? '';
+      const res = await apiJson('/api/admin/users?search=' + encodeURIComponent(q));
+      const data = await res.json();
+      document.getElementById('usersBody').innerHTML = (data.data ?? []).map(u => `
+        <tr>
+          <td>${u.id}</td><td>${u.email}</td>
+          <td><span class="badge badge-${u.role}">${u.role}</span></td>
+          <td>${u.plan ?? '—'}</td>
+          <td>${u.subscription_status ?? '—'}</td>
+          <td>${new Date(u.created_at).toLocaleDateString()}</td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="toggleRole(${u.id})">Toggle Role</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    async function toggleRole(id) {
+      if (!confirm('Toggle role for user ' + id + '?')) return;
+      await apiJson('/api/admin/users/' + id + '/toggle-role', { method: 'POST' });
+      loadUsers();
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Delete user ' + id + '? This cannot be undone.')) return;
+      await apiJson('/api/admin/users/' + id, { method: 'DELETE' });
+      loadUsers();
+    }
+
+    async function loadDevices() {
+      const status = document.getElementById('deviceStatusFilter')?.value ?? '';
+      const res = await apiJson('/api/admin/devices' + (status ? '?status=' + status : ''));
+      const data = await res.json();
+      document.getElementById('devicesBody').innerHTML = (data.data ?? []).map(d => `
+        <tr>
+          <td>${d.id}</td>
+          <td class="mono">${d.udid}</td>
+          <td>${d.name ?? '—'}</td>
+          <td>${d.owner_email}</td>
+          <td><span class="badge badge-${d.status}">${d.status}</span></td>
+          <td>${new Date(d.created_at).toLocaleDateString()}</td>
+          <td>
+            <select onchange="updateDeviceStatus(${d.id}, this.value)">
+              ${['pending','approved','signed','rejected'].map(s => `<option ${s===d.status?'selected':''}>${s}</option>`).join('')}
+            </select>
+            <button class="btn btn-sm btn-danger" onclick="deleteDevice(${d.id})">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    async function updateDeviceStatus(id, status) {
+      await apiJson('/api/admin/devices/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) });
+    }
+
+    async function deleteDevice(id) {
+      if (!confirm('Delete device ' + id + '?')) return;
+      await apiJson('/api/admin/devices/' + id, { method: 'DELETE' });
+      loadDevices();
+    }
+
+    async function loadSubs() {
+      const res = await apiJson('/api/admin/subscriptions');
+      const data = await res.json();
+      document.getElementById('subsBody').innerHTML = (data.data ?? []).map(s => `
+        <tr>
+          <td>${s.id}</td><td>${s.user_email}</td><td>${s.plan}</td>
+          <td><span class="badge badge-${s.status}">${s.status}</span></td>
+          <td>${s.current_period_end ? new Date(s.current_period_end).toLocaleDateString() : '—'}</td>
+        </tr>`).join('');
+    }
+
+    async function loadCerts() {
+      const res = await apiJson('/api/admin/certificates');
+      const data = await res.json();
+      document.getElementById('certsBody').innerHTML = (data ?? []).map(c => `
+        <tr>
+          <td>${c.id}</td><td>${c.name}</td><td>${c.team_id ?? '—'}</td>
+          <td>${c.common_name ?? '—'}</td>
+          <td>${c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '—'}</td>
+          <td>${c.is_active ? '✅' : '❌'}</td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="toggleCert(${c.id})">Toggle</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteCert(${c.id})">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function openCertUpload() { document.getElementById('certModal').classList.remove('hidden'); }
+    function closeCertModal() { document.getElementById('certModal').classList.add('hidden'); }
+
+    async function uploadCert() {
+      const fd = new FormData();
+      fd.append('name', document.getElementById('certName').value);
+      fd.append('file', document.getElementById('certFile').files[0]);
+      fd.append('password', document.getElementById('certPass').value);
+      fd.append('team_id', document.getElementById('certTeam').value);
+      fd.append('common_name', document.getElementById('certCN').value);
+      fd.append('expires_at', document.getElementById('certExp').value);
+      const res = await api('/api/admin/certificates/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) { closeCertModal(); loadCerts(); }
+      else alert(data.error ?? 'Upload failed');
+    }
+
+    async function toggleCert(id) {
+      await apiJson('/api/admin/certificates/' + id + '/toggle', { method: 'POST' });
+      loadCerts();
+    }
+    async function deleteCert(id) {
+      if (!confirm('Delete certificate ' + id + '?')) return;
+      await apiJson('/api/admin/certificates/' + id + '/delete', { method: 'DELETE' });
+      loadCerts();
+    }
+
+    async function loadProfiles() {
+      const res = await apiJson('/api/admin/profiles');
+      const data = await res.json();
+      document.getElementById('profilesBody').innerHTML = (data ?? []).map(p => `
+        <tr>
+          <td>${p.id}</td><td>${p.name}</td><td>${p.bundle_id ?? '—'}</td>
+          <td>${p.team_id ?? '—'}</td>
+          <td>${p.expires_at ? new Date(p.expires_at).toLocaleDateString() : '—'}</td>
+          <td>${p.is_active ? '✅' : '❌'}</td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="toggleProfile(${p.id})">Toggle</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProfile(${p.id})">Delete</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function openProfileUpload() { document.getElementById('profileModal').classList.remove('hidden'); }
+    function closeProfileModal() { document.getElementById('profileModal').classList.add('hidden'); }
+
+    async function uploadProfile() {
+      const fd = new FormData();
+      fd.append('name', document.getElementById('profName').value);
+      fd.append('file', document.getElementById('profFile').files[0]);
+      fd.append('bundle_id', document.getElementById('profBundle').value);
+      fd.append('team_id', document.getElementById('profTeam').value);
+      fd.append('expires_at', document.getElementById('profExp').value);
+      const res = await api('/api/admin/profiles/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (res.ok) { closeProfileModal(); loadProfiles(); }
+      else alert(data.error ?? 'Upload failed');
+    }
+
+    async function toggleProfile(id) {
+      await apiJson('/api/admin/profiles/' + id + '/toggle', { method: 'POST' });
+      loadProfiles();
+    }
+    async function deleteProfile(id) {
+      if (!confirm('Delete profile ' + id + '?')) return;
+      await apiJson('/api/admin/profiles/' + id + '/delete', { method: 'DELETE' });
+      loadProfiles();
+    }
+
+    async function loadSettings() {
+      const res = await apiJson('/api/admin/settings');
+      const d = await res.json();
+      document.getElementById('s_site_name').value = d.site_name ?? '';
+      document.getElementById('s_registration_open').value = d.registration_open ?? 'true';
+      document.getElementById('s_signing_enabled').value = d.signing_enabled ?? 'true';
+      document.getElementById('s_max_devices').value = d.max_devices_per_user ?? '3';
+      document.getElementById('s_stripe_price').value = d.stripe_price_id ?? '';
+      document.getElementById('s_support_email').value = d.support_email ?? '';
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      const form = document.getElementById('settingsForm');
+      const body = {};
+      new FormData(form).forEach((v, k) => { body[k] = v; });
+      const res = await apiJson('/api/admin/settings', { method: 'PATCH', body: JSON.stringify(body) });
+      const data = await res.json();
+      if (res.ok) alert('Settings saved!');
+      else alert(data.error ?? 'Failed to save');
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = '/sign.html';
+    }
+  </script>
+</body>
+</html>
