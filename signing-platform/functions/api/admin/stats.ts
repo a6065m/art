@@ -1,5 +1,5 @@
 // GET /api/admin/stats — dashboard statistics
-import { err, json } from '../../../lib/auth';
+import { json } from '../../../lib/auth';
 import type { Env } from '../../../_middleware';
 
 export const onRequestGet: PagesFunction<Env> = async ({ env, data }) => {

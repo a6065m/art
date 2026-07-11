@@ -77,6 +77,10 @@ export async function verifyJWT(token: string, secret: string): Promise<JWTPaylo
   return payload;
 }
 
+function toHex(buf: Uint8Array): string {
+  return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const key = await crypto.subtle.importKey(
@@ -91,8 +95,6 @@ export async function hashPassword(password: string): Promise<string> {
     key,
     256,
   );
-  const toHex = (buf: Uint8Array) =>
-    Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
   return `${toHex(salt)}:${toHex(new Uint8Array(bits))}`;
 }
 
@@ -112,10 +114,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
     key,
     256,
   );
-  const newHash = Array.from(new Uint8Array(bits))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-  return newHash === hashHex;
+  return toHex(new Uint8Array(bits)) === hashHex;
 }
 
 export function json(data: unknown, status = 200): Response {

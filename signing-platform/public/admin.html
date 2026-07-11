@@ -20,13 +20,13 @@
   <div class="admin-layout">
     <aside class="sidebar">
       <ul>
-        <li><button class="sidebar-btn active" onclick="showSection('overview')">📊 Overview</button></li>
-        <li><button class="sidebar-btn" onclick="showSection('users')">👥 Users</button></li>
-        <li><button class="sidebar-btn" onclick="showSection('devices')">📱 Devices</button></li>
-        <li><button class="sidebar-btn" onclick="showSection('subscriptions')">💳 Subscriptions</button></li>
-        <li><button class="sidebar-btn" onclick="showSection('certificates')">🔑 Certificates</button></li>
-        <li><button class="sidebar-btn" onclick="showSection('profiles')">📄 Profiles</button></li>
-        <li><button class="sidebar-btn" onclick="showSection('settings')">⚙️ Settings</button></li>
+        <li><button class="sidebar-btn active" data-section="overview" onclick="showSection('overview')">📊 Overview</button></li>
+        <li><button class="sidebar-btn" data-section="users" onclick="showSection('users')">👥 Users</button></li>
+        <li><button class="sidebar-btn" data-section="devices" onclick="showSection('devices')">📱 Devices</button></li>
+        <li><button class="sidebar-btn" data-section="subscriptions" onclick="showSection('subscriptions')">💳 Subscriptions</button></li>
+        <li><button class="sidebar-btn" data-section="certificates" onclick="showSection('certificates')">🔑 Certificates</button></li>
+        <li><button class="sidebar-btn" data-section="profiles" onclick="showSection('profiles')">📄 Profiles</button></li>
+        <li><button class="sidebar-btn" data-section="settings" onclick="showSection('settings')">⚙️ Settings</button></li>
       </ul>
     </aside>
 
@@ -186,7 +186,8 @@
     })();
 
     function showSection(name) {
-      document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.toggle('active', b.onclick.toString().includes(name)));
+      document.querySelectorAll('.sidebar-btn').forEach(b =>
+        b.classList.toggle('active', b.dataset.section === name));
       document.querySelectorAll('main > section').forEach(s =>
         s.classList.toggle('hidden', s.id !== 'section-' + name));
       // Lazy load

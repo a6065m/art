@@ -28,8 +28,8 @@
 
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab active" onclick="showTab('devices')">Devices</button>
-      <button class="tab" onclick="showTab('history')">Signing History</button>
+      <button class="tab active" data-tab="devices" onclick="showTab('devices')">Devices</button>
+      <button class="tab" data-tab="history" onclick="showTab('history')">Signing History</button>
     </div>
 
     <!-- Devices -->
@@ -140,7 +140,8 @@
     }
 
     function showTab(name) {
-      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', t.onclick.toString().includes(name)));
+      document.querySelectorAll('.tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.tab === name));
       ['devices', 'history'].forEach(t =>
         document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
     }

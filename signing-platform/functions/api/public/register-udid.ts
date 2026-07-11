@@ -109,10 +109,17 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   }
 
   if (userId) {
-    // Register device for the authenticated user
-    await env.DB.prepare(
-      `INSERT OR IGNORE INTO devices (user_id, udid, model, status) VALUES (?, ?, ?, 'pending')`,
-    ).bind(userId, udid, model).run();
+    // Register device for the authenticated user; skip silently if UDID already exists
+    const existing = await env.DB.prepare(
+      'SELECT id FROM devices WHERE udid = ?',
+    ).bind(udid).first<{ id: number }>();
+
+    if (!existing) {
+      await env.DB.prepare(
+        `INSERT INTO devices (user_id, udid, model, status) VALUES (?, ?, ?, 'pending')`,
+      ).bind(userId, udid, model).run();
+    }
+    // If already registered, we still continue — device info is passed back via redirect
   }
 
   // Redirect back to the sign page with the UDID in the query string
