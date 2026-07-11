@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مفضلتي — IPTV</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <header class="navbar">
+    <a href="/" class="logo">📺 IPTV</a>
+    <nav>
+      <a href="/">🏠 الرئيسية</a>
+      <a href="/matches.html">⚽ المباريات</a>
+      <a href="/favorites.html" class="active">❤️ مفضلتي</a>
+    </nav>
+    <div class="nav-actions" id="navActions">
+      <a href="/login.html" class="btn btn-outline">دخول</a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <h1>❤️ مفضلتي</h1>
+    <p>قنواتك المفضلة في مكان واحد</p>
+  </section>
+
+  <div class="container">
+    <div class="section">
+      <div class="section-header">
+        <div class="section-title">📌 <span>القنوات المحفوظة</span></div>
+        <button class="btn btn-outline btn-sm" onclick="clearAll()">🗑️ مسح الكل</button>
+      </div>
+      <div id="favGrid" class="grid">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    let allChannels = [];
+
+    function updateNav() {
+      const nav = document.getElementById('navActions');
+      if (token && user.username) {
+        nav.innerHTML = `
+          <span style="color:var(--text-muted);font-size:0.85rem">مرحباً، ${user.username}</span>
+          <button class="btn btn-outline btn-sm" onclick="logout()">خروج</button>
+        `;
+      }
+    }
+    function logout() { localStorage.removeItem('token'); localStorage.removeItem('user'); window.location.href = '/login.html'; }
+
+    async function loadFavorites() {
+      try {
+        const res = await fetch('/channels', { headers: token ? { 'Authorization': 'Bearer ' + token } : {} });
+        if (res.ok) allChannels = await res.json();
+      } catch (_) {}
+      render();
+    }
+
+    function render() {
+      const grid = document.getElementById('favGrid');
+      const favChannels = favorites.length
+        ? allChannels.filter(c => favorites.includes(c.id))
+        : [];
+
+      if (!favorites.length) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1">
+            <div class="empty-icon">💔</div>
+            <p>لا توجد قنوات في المفضلة</p>
+            <a href="/" class="btn btn-primary" style="margin-top:1rem">تصفح القنوات</a>
+          </div>`;
+        return;
+      }
+
+      // عرض من localStorage إذا لم تُحمَّل من API
+      const list = favChannels.length ? favChannels : favorites.map(id => ({ id, name: `قناة ${id}`, logo: '' }));
+      grid.innerHTML = list.map(ch => `
+        <div class="card">
+          <div class="card-img">${ch.logo ? `<img src="${ch.logo}" alt="${ch.name}" onerror="this.parentElement.textContent='📺'">` : '📺'}</div>
+          <div class="card-body">
+            <div class="card-title">${ch.name}</div>
+          </div>
+          <div class="card-actions">
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="watch('${ch.id}')">▶ مشاهدة</button>
+            <button class="btn btn-danger btn-sm" onclick="remove('${ch.id}')" title="إزالة">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function remove(id) {
+      favorites = favorites.filter(f => f !== id);
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      showToast('تمت الإزالة من المفضلة');
+      render();
+    }
+
+    function clearAll() {
+      if (!confirm('هل تريد مسح جميع القنوات من المفضلة؟')) return;
+      favorites = [];
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      render();
+    }
+
+    function watch(id) {
+      window.location.href = `/?play=${id}`;
+    }
+
+    function showToast(msg, type = '') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    updateNav();
+    loadFavorites();
+  </script>
+</body>
+</html>

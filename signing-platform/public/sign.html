@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Signing Platform</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <a class="brand" href="/">Signing Platform</a>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="showForm('login')">Login</button>
+      <button class="auth-tab" onclick="showForm('register')">Register</button>
+    </div>
+
+    <!-- Login Form -->
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" autocomplete="email" required />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required />
+      </div>
+      <p class="error-msg hidden" id="loginError"></p>
+      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Login</button>
+    </form>
+
+    <!-- Register Form -->
+    <form id="registerForm" class="hidden" onsubmit="handleRegister(event)">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" autocomplete="email" required />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" autocomplete="new-password" required minlength="8" />
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="regConfirm" autocomplete="new-password" required />
+      </div>
+      <p class="error-msg hidden" id="regError"></p>
+      <button type="submit" class="btn btn-primary btn-block" id="regBtn">Create Account</button>
+    </form>
+
+    <!-- UDID quick-register (shown when redirected from iOS profile) -->
+    <div id="udidSection" class="hidden">
+      <hr />
+      <p class="hint">Your device UDID was captured. Log in or register to register this device.</p>
+      <p class="mono" id="capturedUDID"></p>
+    </div>
+  </div>
+
+  <script>
+    // If already logged in, redirect to dashboard
+    if (localStorage.getItem('token')) window.location.href = '/dashboard.html';
+
+    const params = new URLSearchParams(location.search);
+    const udid = params.get('udid');
+    if (udid) {
+      document.getElementById('udidSection').classList.remove('hidden');
+      document.getElementById('capturedUDID').textContent = udid;
+    }
+
+    // Show register tab if hash says so
+    if (location.hash === '#register') showForm('register');
+
+    function showForm(name) {
+      document.querySelectorAll('.auth-tab').forEach((t, i) =>
+        t.classList.toggle('active', (i === 0 && name === 'login') || (i === 1 && name === 'register')));
+      document.getElementById('loginForm').classList.toggle('hidden', name !== 'login');
+      document.getElementById('registerForm').classList.toggle('hidden', name !== 'register');
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true; btn.textContent = 'Logging in…';
+      const errEl = document.getElementById('loginError');
+      errEl.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('loginEmail').value,
+            password: document.getElementById('loginPassword').value,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          await maybeRegisterDevice(data.token);
+          window.location.href = data.user.role === 'admin' ? '/admin.html' : '/dashboard.html';
+        } else {
+          errEl.textContent = data.error ?? 'Login failed';
+          errEl.classList.remove('hidden');
+        }
+      } finally {
+        btn.disabled = false; btn.textContent = 'Login';
+      }
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('regError');
+      errEl.classList.add('hidden');
+
+      const password = document.getElementById('regPassword').value;
+      const confirm = document.getElementById('regConfirm').value;
+      if (password !== confirm) {
+        errEl.textContent = 'Passwords do not match';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('regBtn');
+      btn.disabled = true; btn.textContent = 'Creating account…';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('regEmail').value,
+            password,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem('token', data.token);
+          await maybeRegisterDevice(data.token);
+          window.location.href = '/dashboard.html';
+        } else {
+          errEl.textContent = data.error ?? 'Registration failed';
+          errEl.classList.remove('hidden');
+        }
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Account';
+      }
+    }
+
+    async function maybeRegisterDevice(token) {
+      if (!udid) return;
+      await fetch('/api/signing/submit-udid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ udid }),
+      });
+    }
+  </script>
+</body>
+</html>

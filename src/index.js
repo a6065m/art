@@ -1,11 +1,15 @@
 // Minimal Express + Sequelize scaffold (entry point)
 
+const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
 const { sequelize } = require('./models');
 
 const app = express();
 app.use(bodyParser.json());
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Simple health
 app.get('/health', (req, res) => res.json({ status: 'ok' }));

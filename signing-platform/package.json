@@ -1,0 +1,17 @@
+{
+  "name": "signing-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler pages dev ./public --d1=DB",
+    "deploy": "wrangler pages deploy ./public",
+    "db:apply": "wrangler d1 execute signing-platform-db --file=./schema.sql",
+    "db:apply:local": "wrangler d1 execute signing-platform-db --local --file=./schema.sql",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241205.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^3.99.0"
+  }
+}

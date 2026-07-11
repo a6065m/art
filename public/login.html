@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تسجيل الدخول — IPTV</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-box">
+      <div class="auth-logo">📺 IPTV</div>
+      <div class="auth-subtitle">منصة مشاهدة القنوات والمباريات</div>
+
+      <div class="auth-tabs">
+        <div class="auth-tab active" onclick="switchTab('login')">تسجيل الدخول</div>
+        <div class="auth-tab" onclick="switchTab('register')">حساب جديد</div>
+      </div>
+
+      <!-- Login Form -->
+      <div id="loginForm" class="auth-form active">
+        <div class="auth-error" id="loginError"></div>
+        <div class="form-group">
+          <label>البريد الإلكتروني</label>
+          <input type="email" id="loginEmail" placeholder="أدخل بريدك الإلكتروني" />
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور</label>
+          <input type="password" id="loginPassword" placeholder="أدخل كلمة المرور" />
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="doLogin()">
+          🔓 دخول
+        </button>
+        <p style="text-align:center; margin-top:1rem; font-size:0.85rem; color:var(--text-muted)">
+          ليس لديك حساب؟
+          <a href="#" onclick="switchTab('register')" style="color:var(--primary)">سجّل الآن</a>
+        </p>
+      </div>
+
+      <!-- Register Form -->
+      <div id="registerForm" class="auth-form">
+        <div class="auth-error" id="registerError"></div>
+        <div class="form-group">
+          <label>اسم المستخدم</label>
+          <input type="text" id="regUsername" placeholder="اختر اسم مستخدم" />
+        </div>
+        <div class="form-group">
+          <label>البريد الإلكتروني</label>
+          <input type="email" id="regEmail" placeholder="أدخل بريدك الإلكتروني" />
+        </div>
+        <div class="form-group">
+          <label>كلمة المرور</label>
+          <input type="password" id="regPassword" placeholder="أدخل كلمة مرور قوية" />
+        </div>
+        <div class="form-group">
+          <label>تأكيد كلمة المرور</label>
+          <input type="password" id="regPassword2" placeholder="أعد كتابة كلمة المرور" />
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="doRegister()">
+          ✅ إنشاء الحساب
+        </button>
+        <p style="text-align:center; margin-top:1rem; font-size:0.85rem; color:var(--text-muted)">
+          لديك حساب؟
+          <a href="#" onclick="switchTab('login')" style="color:var(--primary)">سجّل دخولك</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    const API = '';
+
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach((t, i) => {
+        t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'register'));
+      });
+      document.getElementById('loginForm').classList.toggle('active', tab === 'login');
+      document.getElementById('registerForm').classList.toggle('active', tab === 'register');
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errEl = document.getElementById('loginError');
+      errEl.style.display = 'none';
+
+      if (!email || !password) {
+        errEl.textContent = 'يرجى ملء جميع الحقول';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'فشل تسجيل الدخول');
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user || {}));
+        showToast('مرحباً بك! 👋', 'success');
+        setTimeout(() => {
+          window.location.href = data.user?.role === 'ROLE_ADMIN' ? '/admin/' : '/';
+        }, 800);
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      }
+    }
+
+    async function doRegister() {
+      const username = document.getElementById('regUsername').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const password2 = document.getElementById('regPassword2').value;
+      const errEl = document.getElementById('registerError');
+      errEl.style.display = 'none';
+
+      if (!username || !email || !password) {
+        errEl.textContent = 'يرجى ملء جميع الحقول';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (password !== password2) {
+        errEl.textContent = 'كلمتا المرور غير متطابقتين';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (password.length < 6) {
+        errEl.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API}/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'فشل التسجيل');
+        showToast('تم إنشاء الحساب بنجاح! 🎉', 'success');
+        setTimeout(() => switchTab('login'), 1000);
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      }
+    }
+
+    function showToast(msg, type = '') {
+      const c = document.getElementById('toastContainer');
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.textContent = msg;
+      c.appendChild(t);
+      setTimeout(() => t.remove(), 3000);
+    }
+
+    // اضغط Enter للدخول
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const active = document.querySelector('.auth-form.active');
+        if (active?.id === 'loginForm') doLogin();
+        else doRegister();
+      }
+    });
+
+    // إذا مسجل دخول انتقل للرئيسية
+    if (localStorage.getItem('token')) window.location.href = '/';
+  </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Signing Platform</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a class="brand" href="/">Signing Platform</a>
+      <nav>
+        <span class="user-email" id="userEmail"></span>
+        <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container dashboard">
+    <h2>My Dashboard</h2>
+
+    <!-- Subscription Banner -->
+    <div id="subBanner" class="banner banner-warn hidden">
+      You don't have an active subscription.
+      <button class="btn btn-primary btn-sm" onclick="subscribe()">Subscribe Now</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="devices" onclick="showTab('devices')">Devices</button>
+      <button class="tab" data-tab="history" onclick="showTab('history')">Signing History</button>
+    </div>
+
+    <!-- Devices -->
+    <section id="tab-devices">
+      <div class="section-header">
+        <h3>My Devices</h3>
+        <button class="btn btn-primary btn-sm" onclick="openAddDevice()">+ Add Device</button>
+      </div>
+      <div id="deviceList" class="device-list">Loading…</div>
+    </section>
+
+    <!-- History -->
+    <section id="tab-history" class="hidden">
+      <h3>Signing History</h3>
+      <table class="table" id="historyTable">
+        <thead>
+          <tr><th>Date</th><th>UDID</th><th>Certificate</th><th>Profile</th><th>Status</th></tr>
+        </thead>
+        <tbody id="historyBody"><tr><td colspan="5">Loading…</td></tr></tbody>
+      </table>
+    </section>
+  </main>
+
+  <!-- Add Device Modal -->
+  <div class="modal-backdrop hidden" id="addDeviceModal">
+    <div class="modal">
+      <h3>Register Device</h3>
+      <p>You can register via UDID or use the automatic iOS enrollment profile.</p>
+      <div class="form-group">
+        <label>UDID</label>
+        <input type="text" id="udidInput" placeholder="00000000-000000000000000" />
+      </div>
+      <div class="form-group">
+        <label>Device Name (optional)</label>
+        <input type="text" id="deviceName" placeholder="My iPhone" />
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <a class="btn btn-outline" id="enrollBtn" href="#">📲 Enroll via Profile</a>
+        <button class="btn btn-primary" onclick="submitUDID()">Register</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = '/sign.html';
+
+    let user = null;
+
+    async function init() {
+      // Fetch user
+      const meRes = await api('/api/auth/me');
+      user = await meRes.json();
+      if (!user?.id) { logout(); return; }
+      document.getElementById('userEmail').textContent = user.email;
+
+      // Check subscription
+      const subRes = await api('/api/subscription/status');
+      const sub = await subRes.json();
+      if (!sub.active) document.getElementById('subBanner').classList.remove('hidden');
+
+      // Set enroll URL
+      document.getElementById('enrollBtn').href = '/api/public/register-udid?token=' + encodeURIComponent(token);
+
+      await loadDevices();
+      await loadHistory();
+
+      // Handle redirect after Stripe
+      if (new URLSearchParams(location.search).get('subscribed')) {
+        history.replaceState({}, '', '/dashboard.html');
+        alert('Subscription activated! 🎉');
+      }
+    }
+
+    function api(path, opts = {}) {
+      return fetch(path, {
+        ...opts,
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      });
+    }
+
+    async function loadDevices() {
+      const res = await api('/api/signing/history');
+      // Use devices from DB
+      const devRes = await api('/api/auth/me');
+      const devData = await (await fetch('/api/admin/devices?user=me', { headers: { Authorization: 'Bearer ' + token } })).json().catch(() => null);
+      // Show raw device list via submit-udid endpoint (GET not available here; show from history)
+      document.getElementById('deviceList').innerHTML = '<em>Use the Enroll or manual UDID flow to add devices.</em>';
+    }
+
+    async function loadHistory() {
+      const res = await api('/api/signing/history');
+      const data = await res.json();
+      const tbody = document.getElementById('historyBody');
+      if (!data.data?.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">No signing requests yet.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.data.map(r => `
+        <tr>
+          <td>${new Date(r.created_at).toLocaleDateString()}</td>
+          <td class="mono">${r.udid ?? '—'}</td>
+          <td>${r.certificate_name ?? '—'}</td>
+          <td>${r.profile_name ?? '—'}</td>
+          <td><span class="badge badge-${r.status}">${r.status}</span></td>
+        </tr>`).join('');
+    }
+
+    function showTab(name) {
+      document.querySelectorAll('.tab').forEach(t =>
+        t.classList.toggle('active', t.dataset.tab === name));
+      ['devices', 'history'].forEach(t =>
+        document.getElementById('tab-' + t).classList.toggle('hidden', t !== name));
+    }
+
+    function openAddDevice() {
+      document.getElementById('addDeviceModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('addDeviceModal').classList.add('hidden');
+    }
+
+    async function submitUDID() {
+      const udid = document.getElementById('udidInput').value.trim();
+      const name = document.getElementById('deviceName').value.trim();
+      if (!udid) { alert('Please enter a UDID'); return; }
+      const res = await api('/api/signing/submit-udid', {
+        method: 'POST',
+        body: JSON.stringify({ udid, name }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Device registered successfully!');
+        closeModal();
+        loadDevices();
+      } else {
+        alert(data.error ?? 'Failed to register device');
+      }
+    }
+
+    async function subscribe() {
+      const res = await api('/api/subscription/create', { method: 'POST' });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert(data.error ?? 'Failed to create checkout session');
+    }
+
+    function logout() {
+      localStorage.removeItem('token');
+      window.location.href = '/sign.html';
+    }
+
+    init();
+  </script>
+</body>
+</html>

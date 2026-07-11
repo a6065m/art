@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "signing-platform",
+  "compatibility_date": "2024-09-23",
+  "pages_build_output_dir": "./public",
+
+  // D1 database binding
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "signing-platform-db",
+      "database_id": "<YOUR_D1_DATABASE_ID>"
+    }
+  ],
+
+  // R2 bucket for certificates and provisioning profiles
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "signing-platform-assets"
+    }
+  ],
+
+  // Environment variables (non-secret)
+  "vars": {
+    "ENVIRONMENT": "production"
+  }
+  // Secrets (set via `wrangler secret put`):
+  //   JWT_SECRET
+  //   STRIPE_SECRET_KEY
+  //   STRIPE_WEBHOOK_SECRET
+}
